@@ -24,24 +24,32 @@ def listar_rachas(user=Depends(get_current_user)):
 
     return response.data
 
-@router.get("/{racha_id}")
-def listar_racha_unico(racha_id: int, user=Depends(get_current_user)):
+@router.get("/{racha_uuid}")
+def listar_racha_unico(racha_uuid, user=Depends(get_current_user)):
     """
     Lista um racha específico do usuário autenticado.
     """
     response = (
         supabase
         .table("rachas")
-        .select("*")
-        .eq("owner_id", str(user.id))
-        .eq("id", racha_id)
+        .select("""
+            *,
+            profiles_racha (
+                status,
+                profiles (
+                    id,
+                    nickname,
+                    email
+                )
+            )
+        """)
+        #.eq("owner_id", str(user.id))
+        .eq("racha_id", racha_uuid)
         .execute()
     )
 
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Racha não encontrado")
+    return response
 
-    return response.data
 
 @router.post("/criar")
 def create_racha(data: RachaCreate, user=Depends(get_current_user)):
@@ -65,3 +73,23 @@ def create_racha(data: RachaCreate, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Erro ao criar racha")
 
     return response.data
+
+@router.post("/{racha_uuid}/entrar")
+def entrar_racha(racha_uuid, user=Depends(get_current_user)):
+    """
+    Entra em um racha existente.
+    """
+    response = (
+        supabase
+        .table("profiles_racha")
+        .insert({
+            "racha_id": racha_uuid,
+            "profile_id": str(user.id)
+        })
+        .execute()
+    )
+
+    if response.data is None:
+        raise HTTPException(status_code=400, detail="Erro ao ingressar no racha")
+
+    return response.data]
